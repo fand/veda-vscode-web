@@ -1,0 +1,15 @@
+{
+  "name": "veda-vscode-web-server",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "fand <fand.gmork@gmail.com> (https://gmork.in/)",
+  "license": "MIT",
+  "devDependencies": {
+    "nexe": "^3.0.0-beta.15"
+  }
+}
