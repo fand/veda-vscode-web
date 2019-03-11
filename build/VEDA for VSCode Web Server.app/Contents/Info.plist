@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>veda-for-vscode</string>
+	<string>veda-vscode-web-server</string>
 	<key>CFBundleIconFile</key>
 	<string>Icon</string>
 	<key>CFBundleName</key>
