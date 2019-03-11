@@ -14,11 +14,14 @@ import (
 
 	"github.com/getlantern/systray"
 	"github.com/phayes/freeport"
+	"github.com/skratchdot/open-golang/open"
 )
 
 var (
-	cmd *exec.Cmd
-	srv *http.Server
+	command     *exec.Cmd
+	server      *http.Server
+	wrapperPort int
+	serverPort  int
 )
 
 func launchCodeServer() (*exec.Cmd, int) {
@@ -55,18 +58,27 @@ func launchWebServer(wrapperPort, port int) *http.Server {
 
 	// Run server in goroutine
 	go func() {
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalf("ListenAndServe(): %s", err)
 		}
 	}()
 
-	return srv
+	return server
 }
 
 func initMenu() {
 	// systray.SetIcon(getIcon("assets/clock.ico"))
 	systray.SetTitle("VEDA")
 	systray.SetTooltip("VEDA for VSCode Web Server")
+
+	mOpen := systray.AddMenuItem("Open VSCode for Web", "Open VSCode in the browser")
+	go func() {
+		for {
+			<-mOpen.ClickedCh
+			open.Start(fmt.Sprintf("http://localhost:%d", serverPort))
+		}
+	}()
+
 	mQuit := systray.AddMenuItem("Quit", "Quit VSCode Web Server")
 	go func() {
 		<-mQuit.ClickedCh
@@ -76,13 +88,13 @@ func initMenu() {
 
 func cleanup() {
 	// Kill HTTP server
-	err := srv.Close()
+	err := server.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Kill code-server before quit
-	cmd.Process.Kill()
+	command.Process.Kill()
 }
 
 func main() {
@@ -93,8 +105,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cm, port := launchCodeServer()
-	cmd = cm
+	command, serverPort = launchCodeServer()
 
 	// Prepare cleanup
 	signalChan := make(chan os.Signal, 1)
@@ -104,12 +115,7 @@ func main() {
 		cleanup()
 	}()
 
-	srv = launchWebServer(wrapperPort, port)
+	server = launchWebServer(wrapperPort, serverPort)
 
-	// systray.Run(initMenu, cleanup)
-	systray.Run(func() {
-		initMenu()
-		systray.AddMenuItem(fmt.Sprintf("wp: %d", wrapperPort), "")
-		systray.AddMenuItem(fmt.Sprintf("port: %d", port), "")
-	}, cleanup)
+	systray.Run(initMenu, cleanup)
 }
