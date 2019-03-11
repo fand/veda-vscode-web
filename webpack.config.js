@@ -2,10 +2,13 @@ const path = require('path');
 
 module.exports = {
   mode: 'development',
-  entry: path.resolve(__dirname, 'client/content.ts'),
+  entry: {
+    index: path.resolve(__dirname, 'client/index.ts'),
+    content: path.resolve(__dirname, 'client/content.ts'),
+  },
   output: {
     path: path.resolve(__dirname, 'build/veda-vscode-web'),
-    filename: 'content.js',
+    filename: '[name].js',
   },
   resolve: {
     extensions: ['.ts', '.js'],
