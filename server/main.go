@@ -3,14 +3,17 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 
 	"github.com/phayes/freeport"
@@ -79,11 +82,19 @@ func sendResponse(res response) {
 	println(str)
 }
 
-func launchServer() int {
+func launchServerWrapper() int {
 	port := -1
 
+	// Get file paths
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	dirPath := filepath.Dir(exePath)
+	wrapperCmdPath := filepath.Join(dirPath, "code-server-wrapper")
+
 	// Return the port if the server is already running
-	processes, err := exec.Command("ps aux").Output()
+	processes, err := exec.Command("ps", "aux").Output()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -105,7 +116,7 @@ func launchServer() int {
 			log.Fatal(err)
 		}
 
-		cmd := exec.Command("code-server-wrapper " + string(port))
+		cmd := exec.Command(wrapperCmdPath, strconv.Itoa(port))
 		err = cmd.Start()
 		if err != nil {
 			panic(err)
@@ -115,8 +126,20 @@ func launchServer() int {
 	return port
 }
 
-func getServerPort(wrapperPort int) int {
-	res, err := http.Get("http://localhost:" + strconv.Itoa(wrapperPort) + "/port")
+func httpGet(url string, retry int) string {
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	var res *http.Response
+	var err error
+
+	for i := 0; i < retry; i++ {
+		res, err = client.Get(url)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,7 +149,13 @@ func getServerPort(wrapperPort int) int {
 		log.Fatal(err)
 	}
 
-	port, err := strconv.Atoi(string(resData))
+	return string(resData)
+}
+
+func getServerPort(wrapperPort int) int {
+	res := httpGet(fmt.Sprintf("http://127.0.0.1:%d/port", wrapperPort), 10)
+
+	port, err := strconv.Atoi(res)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -135,12 +164,12 @@ func getServerPort(wrapperPort int) int {
 }
 
 func main() {
-	wrapperPort := launchServer()
+	wrapperPort := launchServerWrapper()
 	serverPort := getServerPort(wrapperPort)
 
 	// Open browser
-	if len(os.Args) == 0 {
-		open.Start("http://localhost:" + strconv.Itoa(serverPort))
+	if len(os.Args) == 1 {
+		open.Start(fmt.Sprintf("http://localhost:%d", serverPort))
 	}
 
 	// Handle messages from the extension via Native Messsaging API

@@ -6,10 +6,19 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"runtime"
 	"strconv"
+	"syscall"
 
 	"github.com/getlantern/systray"
 	"github.com/phayes/freeport"
+)
+
+var (
+	cmd *exec.Cmd
+	srv *http.Server
 )
 
 func launchCodeServer() (*exec.Cmd, int) {
@@ -18,8 +27,16 @@ func launchCodeServer() (*exec.Cmd, int) {
 		log.Fatal(err)
 	}
 
+	// Get cmd path
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	dirPath := filepath.Dir(exePath)
+	serverCmdPath := filepath.Join(dirPath, "code-server")
+
 	// Run code-server
-	cmd := exec.Command("code-server", "--no-auth", "-p", strconv.Itoa(port))
+	cmd := exec.Command(serverCmdPath, "--no-auth", "-p", strconv.Itoa(port))
 	err = cmd.Start()
 	if err != nil {
 		log.Fatal(err)
@@ -30,7 +47,7 @@ func launchCodeServer() (*exec.Cmd, int) {
 
 func launchWebServer(wrapperPort, port int) *http.Server {
 	// Start HTTP server for IPC
-	srv := &http.Server{Addr: ":" + strconv.Itoa(wrapperPort)}
+	server := &http.Server{Addr: fmt.Sprintf(":%d", wrapperPort)}
 
 	http.HandleFunc("/port", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, strconv.Itoa(port))
@@ -57,25 +74,42 @@ func initMenu() {
 	}()
 }
 
+func cleanup() {
+	// Kill HTTP server
+	err := srv.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Kill code-server before quit
+	cmd.Process.Kill()
+}
+
 func main() {
+	runtime.LockOSThread()
+
 	wrapperPort, err := strconv.Atoi(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
-	println(wrapperPort)
 
-	cmd, port := launchCodeServer()
+	cm, port := launchCodeServer()
+	cmd = cm
 
-	srv := launchWebServer(wrapperPort, port)
+	// Prepare cleanup
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	go func() {
+		<-signalChan
+		cleanup()
+	}()
 
-	systray.Run(initMenu, func() {
-		// Kill HTTP server
-		err = srv.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
+	srv = launchWebServer(wrapperPort, port)
 
-		// Kill code-server before quit
-		cmd.Process.Kill()
-	})
+	// systray.Run(initMenu, cleanup)
+	systray.Run(func() {
+		initMenu()
+		systray.AddMenuItem(fmt.Sprintf("wp: %d", wrapperPort), "")
+		systray.AddMenuItem(fmt.Sprintf("port: %d", port), "")
+	}, cleanup)
 }
