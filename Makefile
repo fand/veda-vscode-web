@@ -15,7 +15,8 @@ build-client:
 
 ## Build server binary
 build-server:
-	go build -ldflags "$(LDFLAGS)" -o "build/VEDA for VSCode Web Server/Contents/MacOS/$(SERVER_NAME)" server/main.go
+	go build -ldflags "$(LDFLAGS)" -o "build/VEDA for VSCode Web Server.app/Contents/MacOS/$(SERVER_NAME)" server/main.go
+	go build -ldflags "$(LDFLAGS)" -o "build/VEDA for VSCode Web Server.app/Contents/MacOS/code-server-wrapper" server/code-server-wrapper.go
 
 ## Install dependencies
 deps:

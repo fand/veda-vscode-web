@@ -5,9 +5,16 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/phayes/freeport"
+	"github.com/skratchdot/open-golang/open"
 )
 
 func getEndian() binary.ByteOrder {
@@ -56,9 +63,6 @@ func getRequest() request {
 		panic(err)
 	}
 
-	// Parse content
-	// content := string(bufContent)
-
 	var request request
 	if err := json.Unmarshal(bufContent, &request); err != nil {
 		panic(err)
@@ -75,7 +79,71 @@ func sendResponse(res response) {
 	println(str)
 }
 
+func launchServer() int {
+	port := -1
+
+	// Return the port if the server is already running
+	processes, err := exec.Command("ps aux").Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, process := range strings.Split(string(processes), "\n") {
+		if strings.Index(process, "code-server-wrapper") != -1 {
+			args := strings.Split(process, " ")
+			portStr := args[len(args)-1]
+			port, err = strconv.Atoi(portStr)
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
+
+	// Launch code-server-wrapper if not running
+	if port == -1 {
+		port, err = freeport.GetFreePort()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		cmd := exec.Command("code-server-wrapper " + string(port))
+		err = cmd.Start()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return port
+}
+
+func getServerPort(wrapperPort int) int {
+	res, err := http.Get("http://localhost:" + strconv.Itoa(wrapperPort) + "/port")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	resData, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	port, err := strconv.Atoi(string(resData))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return port
+}
+
 func main() {
+	wrapperPort := launchServer()
+	serverPort := getServerPort(wrapperPort)
+
+	// Open browser
+	if len(os.Args) == 0 {
+		open.Start("http://localhost:" + strconv.Itoa(serverPort))
+	}
+
+	// Handle messages from the extension via Native Messsaging API
 	for {
 		req := getRequest()
 
@@ -89,4 +157,5 @@ func main() {
 		res := response{shader: string(bytes)}
 		sendResponse(res)
 	}
+
 }
