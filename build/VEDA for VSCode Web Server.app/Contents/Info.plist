@@ -5,7 +5,7 @@
 	<key>CFBundleExecutable</key>
 	<string>veda-vscode-web-server</string>
 	<key>CFBundleIconFile</key>
-	<string>Icon</string>
+	<string>icon.icns</string>
 	<key>CFBundleName</key>
 	<string>VEDA VSCode Host</string>
 	<key>CFBundleSupportedPlatforms</key>
