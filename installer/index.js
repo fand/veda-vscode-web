@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-const sudo = require('sudo-prompt');
+const fs = require('fs');
 const path = require('path');
+const sudo = require('sudo-prompt');
 
 const exePath = process.argv[0];
 const exeDir = path.dirname(exePath);
@@ -14,8 +15,12 @@ const options = {
   icns: iconPath,
 };
 
-sudo.exec(`cp ${srcPath} ${dstPath}`, options, (error, stdout) => {
-  console.error(error);
-  console.log(stdout);
-  console.log(error ? 'FAILURE' : 'SUCCESS');
-});
+
+if (fs.existsSync(dstPath)) {
+  process.exit(0);
+} else {
+  sudo.exec(`cp ${srcPath} ${dstPath}`, options, (error) => {
+    process.exit(error ? -1 : 0);
+  });
+}
+
