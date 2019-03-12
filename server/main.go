@@ -17,6 +17,7 @@ import (
 	"unsafe"
 
 	"github.com/phayes/freeport"
+	"github.com/sadlil/gologger"
 	"github.com/skratchdot/open-golang/open"
 )
 
@@ -32,7 +33,7 @@ func getEndian() binary.ByteOrder {
 	case [2]byte{0xAB, 0xCD}:
 		nativeEndian = binary.BigEndian
 	default:
-		panic("Could not determine native endianness.")
+		log.Fatal("Could not determine native endianness.")
 	}
 
 	return nativeEndian
@@ -53,7 +54,7 @@ func getRequest() request {
 	sizeBuf := make([]byte, 4)
 	_, err := io.ReadFull(os.Stdin, sizeBuf)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	// Parse size
@@ -63,12 +64,12 @@ func getRequest() request {
 	bufContent := make([]byte, size)
 	_, err = io.ReadFull(os.Stdin, bufContent)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	var request request
 	if err := json.Unmarshal(bufContent, &request); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	return request
@@ -77,7 +78,7 @@ func getRequest() request {
 func sendResponse(res response) {
 	str, err := json.Marshal(res)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	println(str)
 }
@@ -104,7 +105,7 @@ func launchServerWrapper() int {
 			portStr := args[len(args)-1]
 			port, err = strconv.Atoi(portStr)
 			if err != nil {
-				panic(err)
+				log.Fatal(err)
 			}
 		}
 	}
@@ -119,7 +120,7 @@ func launchServerWrapper() int {
 		cmd := exec.Command(wrapperCmdPath, strconv.Itoa(port))
 		err = cmd.Start()
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}
 
@@ -163,13 +164,27 @@ func getServerPort(wrapperPort int) int {
 	return port
 }
 
+func isOpenFromFinder() bool {
+	for _, arg := range os.Args {
+		if strings.Index(arg, "-psn") != -1 {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	wrapperPort := launchServerWrapper()
 	serverPort := getServerPort(wrapperPort)
 
-	// Open browser
-	if len(os.Args) == 1 {
-		open.Start(fmt.Sprintf("http://localhost:%d", serverPort))
+	logger := gologger.GetLogger(gologger.FILE, "/tmp/gl.veda.vscode.web.server/log.txt")
+	logger.Log(fmt.Sprintf("args len: %d, content: %v\n", len(os.Args), os.Args))
+
+	// Open browser when the app is launched from Finder
+	if isOpenFromFinder() {
+		time.AfterFunc(3*time.Second, func() {
+			open.Start(fmt.Sprintf("http://localhost:%d", serverPort))
+		})
 	}
 
 	// Handle messages from the extension via Native Messsaging API
@@ -180,11 +195,10 @@ func main() {
 
 		bytes, err := ioutil.ReadFile(fileURI)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		res := response{shader: string(bytes)}
 		sendResponse(res)
 	}
-
 }
