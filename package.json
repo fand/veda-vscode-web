@@ -5,13 +5,15 @@
   "main": "index.js",
   "scripts": {
     "build": "webpack --mode production",
-    "watch": "webpack --watch"
+    "watch": "webpack --watch",
+    "build-installer": "pkg installer/index.js -o 'build/VEDA for VSCode Web Server.app/Contents/MacOS/install-manifest' -t node10-macos-x64"
   },
   "keywords": [],
   "author": "fand <fand.gmork@gmail.com> (https://gmork.in/)",
   "license": "MIT",
   "dependencies": {
     "mousetrap": "^1.6.3",
+    "sudo-prompt": "^8.2.5",
     "vedajs": "^0.9.1"
   },
   "devDependencies": {
@@ -23,5 +25,8 @@
     "typescript": "^3.3.3333",
     "webpack": "^4.29.6",
     "webpack-cli": "^3.2.3"
+  },
+  "pkg": {
+    "assets": "installer/**/*"
   }
 }

@@ -7,7 +7,7 @@ LDFLAGS := -X 'main.name=$(NAME)' \
 	-X 'main.revision=$(REVISION)'
 
 ## Build client and server
-build: build-client build-server
+build: build-client build-server build-installer
 
 ## Build WebExtension
 build-client:
@@ -17,6 +17,9 @@ build-client:
 build-server:
 	go build -ldflags "$(LDFLAGS)" -o "build/VEDA for VSCode Web Server.app/Contents/MacOS/$(SERVER_NAME)" server/main.go
 	go build -ldflags "$(LDFLAGS)" -o "build/VEDA for VSCode Web Server.app/Contents/MacOS/code-server-wrapper" server/code-server-wrapper/code-server-wrapper.go
+
+build-installer:
+	npm run build-installer
 
 ## Install dependencies
 deps:
@@ -41,4 +44,4 @@ lint:
 	golint ./...
 	errcheck -ignoretests -blank ./...
 
-.PHONY: build build-client build-server test fmt lint
+.PHONY: build build-client build-server build-installer test fmt lint

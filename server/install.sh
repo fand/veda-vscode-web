@@ -8,7 +8,7 @@ else
   TARGET_DIR='/etc/opt/chrome/native-messaging-hosts'
 fi
 
-HOST_NAME=gl.veda.vscode.web.host
+HOST_NAME=gl.veda.vscode.web.server
 
 # Create directory to store native messaging host.
 mkdir -p $TARGET_DIR
@@ -24,4 +24,4 @@ sed -i -e "s#HOST_PATH#$ESCAPED_HOST_PATH#" $TARGET_DIR/$HOST_NAME.json
 # Set permissions for the manifest so that all users can read it.
 chmod o+r $TARGET_DIR/$HOST_NAME.json
 
-echo Native messaging host $HOST_NAME has been installed.
+echo "VEDA for VSCode Web Server has been installed."

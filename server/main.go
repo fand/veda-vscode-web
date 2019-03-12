@@ -22,6 +22,16 @@ import (
 	"github.com/skratchdot/open-golang/open"
 )
 
+func getCmdPath(p string) string {
+	exePath, err := os.Executable()
+	if err != nil {
+		LogFatal(err)
+	}
+
+	dirPath := filepath.Dir(exePath)
+	return filepath.Join(dirPath, p)
+}
+
 func getEndian() binary.ByteOrder {
 	var nativeEndian binary.ByteOrder
 
@@ -87,14 +97,6 @@ func sendResponse(res response) {
 func launchServerWrapper() int {
 	port := -1
 
-	// Get file paths
-	exePath, err := os.Executable()
-	if err != nil {
-		LogFatal(err)
-	}
-	dirPath := filepath.Dir(exePath)
-	wrapperCmdPath := filepath.Join(dirPath, "code-server-wrapper")
-
 	// Return the port if the server is already running
 	processes, err := exec.Command("ps", "aux").Output()
 	if err != nil {
@@ -118,6 +120,7 @@ func launchServerWrapper() int {
 			LogFatal(err)
 		}
 
+		wrapperCmdPath := getCmdPath("code-server-wrapper")
 		cmd := exec.Command(wrapperCmdPath, strconv.Itoa(port))
 		err = cmd.Start()
 		if err != nil {
@@ -188,6 +191,13 @@ func main() {
 		<-chSignal
 		cleanup()
 	}()
+
+	// Install app manifest if required
+	installCmdPath := getCmdPath("install-manifest.js")
+	err := exec.Command(installCmdPath).Run()
+	if err != nil {
+		LogFatal(err)
+	}
 
 	// Launch code-server-wrapper
 	wrapperPort := launchServerWrapper()

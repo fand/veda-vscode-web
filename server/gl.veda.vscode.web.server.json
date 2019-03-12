@@ -1,9 +1,0 @@
-{
-    "name": "gl.veda.vscode.web.server",
-    "description": "VEDA for VSCode Web Server",
-    "path": "/Applications/VEDA for VSCode Web Server/Contents/MacOS/veda-vscode-web-server",
-    "type": "stdio",
-    "allowed_origins": [
-        "chrome-extension://hhbeecckdgmjekoagpogbpakcnhjojkf/"
-    ]
-}
