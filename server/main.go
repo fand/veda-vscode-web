@@ -193,7 +193,7 @@ func main() {
 	}()
 
 	// Install app manifest if required
-	installCmdPath := getCmdPath("install-manifest.js")
+	installCmdPath := getCmdPath("install-manifest")
 	err := exec.Command(installCmdPath).Run()
 	if err != nil {
 		LogFatal(err)
