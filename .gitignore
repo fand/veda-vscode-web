@@ -1,4 +1,5 @@
 node_modules
 build/veda-vscode-web/*.js
+build/veda-vscode-web.zip
 *.pem
 *.crx

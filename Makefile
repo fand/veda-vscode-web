@@ -12,6 +12,7 @@ build: build-client build-server build-installer
 ## Build WebExtension
 build-client:
 	npm run build
+	zip -r build/veda-vscode-web.zip build/veda-vscode-web
 
 ## Build server binary
 build-server:
