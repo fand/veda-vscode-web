@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -24,22 +25,26 @@ var (
 	serverPort  int
 )
 
+func getCmdPath(p string) string {
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dirPath := filepath.Dir(exePath)
+	return filepath.Join(dirPath, p)
+}
+
 func launchCodeServer() (*exec.Cmd, int) {
 	port, err := freeport.GetFreePort()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Get cmd path
-	exePath, err := os.Executable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	dirPath := filepath.Dir(exePath)
-	serverCmdPath := filepath.Join(dirPath, "code-server")
-
 	// Run code-server
+	serverCmdPath := getCmdPath("code-server")
 	cmd := exec.Command(serverCmdPath, "--no-auth", "-p", strconv.Itoa(port))
+
 	err = cmd.Start()
 	if err != nil {
 		log.Fatal(err)
@@ -67,7 +72,12 @@ func launchWebServer(wrapperPort, port int) *http.Server {
 }
 
 func initMenu() {
-	// systray.SetIcon(getIcon("assets/clock.ico"))
+	iconPath := getCmdPath("../Resources/icon.icns")
+	icon, err := ioutil.ReadFile(iconPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	systray.SetIcon(icon)
 	systray.SetTitle("VEDA")
 	systray.SetTooltip("VEDA for VSCode Web Server")
 
