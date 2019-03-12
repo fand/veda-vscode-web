@@ -4,6 +4,6 @@
     "path": "/Applications/VEDA for VSCode Web Server.app/Contents/MacOS/veda-vscode-web-server",
     "type": "stdio",
     "allowed_origins": [
-        "chrome-extension://hhbeecckdgmjekoagpogbpakcnhjojkf/"
+        "chrome-extension://nhaicdjkbpifjodmdgpphccjcbihjgol/"
     ]
 }
