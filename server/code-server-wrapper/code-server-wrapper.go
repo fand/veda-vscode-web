@@ -1,4 +1,4 @@
-package codeServerWrapper
+package main
 
 import (
 	"fmt"

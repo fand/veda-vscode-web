@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const sudo = require('sudo-prompt');
+const cp = require('child_process');
 
 const exePath = process.argv[0];
 const exeDir = path.dirname(exePath);
@@ -13,13 +14,18 @@ const options = {
 };
 
 const filename = 'gl.veda.vscode.web.server.json';
-const srcPath = path.resolve(exeDir, `../Resources/${filename}`).replace(/(\s+)/g, '\\$1');
-const dstPath = `~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/${filename}`.replace(/(\s+)/g, '\\$1');
+const srcPath = path.resolve(exeDir, `../Resources/${filename}`);
+const dstPath = `~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/${filename}`;
 
-if (fs.existsSync(dstPath)) {
-  process.exit(0);
-} else {
-  sudo.exec(`cp ${srcPath} ${dstPath}`, options, (error) => {
+try {
+  const dp = dstPath.replace(/(\s+)/g, '\\$1');
+  console.log(dp);
+  cp.execSync(`cat ${dp}`) // Fails if not exist
+} catch (e) {
+  const sp = srcPath.replace(/(\s+)/g, '\\$1');
+  const dp = dstPath.replace(/(\s+)/g, '\\$1');
+  console.log(`cp ${sp} ${dp}`);
+  sudo.exec(`cp ${sp} ${dp}`, options, (error) => {
     if (error) { process.exit(-1); }
   });
 }

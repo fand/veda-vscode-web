@@ -58,13 +58,16 @@ type response struct {
 	shader string
 }
 
-func getRequest() request {
+func getRequest() *request {
 	var nativeEndian = getEndian()
 
 	// Read size
 	sizeBuf := make([]byte, 4)
 	_, err := io.ReadFull(os.Stdin, sizeBuf)
 	if err != nil {
+		if err == io.EOF {
+			return nil
+		}
 		LogFatal(err)
 	}
 
@@ -83,7 +86,7 @@ func getRequest() request {
 		LogFatal(err)
 	}
 
-	return request
+	return &request
 }
 
 func sendResponse(res response) {
@@ -189,13 +192,15 @@ func main() {
 	signal.Notify(chSignal, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
 		<-chSignal
+		LogInfo("Shutting down by signal")
 		cleanup()
 	}()
 
 	// Install app manifest if required
 	installCmdPath := getCmdPath("install-manifest")
-	err := exec.Command(installCmdPath).Run()
+	cr, err := exec.Command(installCmdPath).Output()
 	if err != nil {
+		LogInfo(string(cr))
 		LogFatal(err)
 	}
 
@@ -204,15 +209,27 @@ func main() {
 	serverPort := getServerPort(wrapperPort)
 
 	// Open browser when the app is launched from Finder
+	chOpen := make(chan bool)
 	if isOpenFromFinder() {
-		time.AfterFunc(3*time.Second, func() {
+		LogInfo("App is opened from Finder")
+		go func() {
+			time.Sleep(3 * time.Second)
+			LogInfo("Opening browser")
 			open.Start(fmt.Sprintf("http://localhost:%d", serverPort))
-		})
+			chOpen <- true
+		}()
+	} else {
+		chOpen <- true
 	}
 
 	// Handle messages from the extension via Native Messsaging API
+	LogInfo("Native Messaging API host started")
 	for {
 		req := getRequest()
+		if req == nil {
+			LogInfo("Received EOF")
+			break // EOF
+		}
 
 		fileURI := strings.Replace(req.fileUri, "file:///", "/", 1)
 
@@ -225,5 +242,6 @@ func main() {
 		sendResponse(res)
 	}
 
+	chOpen <- true
 	cleanup()
 }

@@ -26,6 +26,14 @@ func LogFatal(m interface{}) {
 	}
 }
 
+func LogInfo(m interface{}) {
+	if logger == nil {
+		log.Println("WARN: logger is uninitialized")
+	} else {
+		logger.Info(m)
+	}
+}
+
 func FlushLogger() {
 	if logger == nil {
 		log.Println("WARN: logger is uninitialized")
