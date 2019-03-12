@@ -6,18 +6,19 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"unsafe"
 
+	. "github.com/fand/veda-vscode-web/server/logger"
 	"github.com/phayes/freeport"
-	"github.com/sadlil/gologger"
 	"github.com/skratchdot/open-golang/open"
 )
 
@@ -33,7 +34,7 @@ func getEndian() binary.ByteOrder {
 	case [2]byte{0xAB, 0xCD}:
 		nativeEndian = binary.BigEndian
 	default:
-		log.Fatal("Could not determine native endianness.")
+		LogFatal("Could not determine native endianness.")
 	}
 
 	return nativeEndian
@@ -54,7 +55,7 @@ func getRequest() request {
 	sizeBuf := make([]byte, 4)
 	_, err := io.ReadFull(os.Stdin, sizeBuf)
 	if err != nil {
-		log.Fatal(err)
+		LogFatal(err)
 	}
 
 	// Parse size
@@ -64,12 +65,12 @@ func getRequest() request {
 	bufContent := make([]byte, size)
 	_, err = io.ReadFull(os.Stdin, bufContent)
 	if err != nil {
-		log.Fatal(err)
+		LogFatal(err)
 	}
 
 	var request request
 	if err := json.Unmarshal(bufContent, &request); err != nil {
-		log.Fatal(err)
+		LogFatal(err)
 	}
 
 	return request
@@ -78,7 +79,7 @@ func getRequest() request {
 func sendResponse(res response) {
 	str, err := json.Marshal(res)
 	if err != nil {
-		log.Fatal(err)
+		LogFatal(err)
 	}
 	println(str)
 }
@@ -89,7 +90,7 @@ func launchServerWrapper() int {
 	// Get file paths
 	exePath, err := os.Executable()
 	if err != nil {
-		log.Fatal(err)
+		LogFatal(err)
 	}
 	dirPath := filepath.Dir(exePath)
 	wrapperCmdPath := filepath.Join(dirPath, "code-server-wrapper")
@@ -97,7 +98,7 @@ func launchServerWrapper() int {
 	// Return the port if the server is already running
 	processes, err := exec.Command("ps", "aux").Output()
 	if err != nil {
-		log.Fatal(err)
+		LogFatal(err)
 	}
 	for _, process := range strings.Split(string(processes), "\n") {
 		if strings.Index(process, "code-server-wrapper") != -1 {
@@ -105,7 +106,7 @@ func launchServerWrapper() int {
 			portStr := args[len(args)-1]
 			port, err = strconv.Atoi(portStr)
 			if err != nil {
-				log.Fatal(err)
+				LogFatal(err)
 			}
 		}
 	}
@@ -114,13 +115,13 @@ func launchServerWrapper() int {
 	if port == -1 {
 		port, err = freeport.GetFreePort()
 		if err != nil {
-			log.Fatal(err)
+			LogFatal(err)
 		}
 
 		cmd := exec.Command(wrapperCmdPath, strconv.Itoa(port))
 		err = cmd.Start()
 		if err != nil {
-			log.Fatal(err)
+			LogFatal(err)
 		}
 	}
 
@@ -142,12 +143,12 @@ func httpGet(url string, retry int) string {
 	}
 
 	if err != nil {
-		log.Fatal(err)
+		LogFatal(err)
 	}
 
 	resData, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Fatal(err)
+		LogFatal(err)
 	}
 
 	return string(resData)
@@ -158,7 +159,7 @@ func getServerPort(wrapperPort int) int {
 
 	port, err := strconv.Atoi(res)
 	if err != nil {
-		log.Fatal(err)
+		LogFatal(err)
 	}
 
 	return port
@@ -173,12 +174,24 @@ func isOpenFromFinder() bool {
 	return false
 }
 
+func cleanup() {
+	FlushLogger()
+}
+
 func main() {
+	InitLogger("/tmp/gl.veda.vscode.web.server/log-main.txt")
+
+	// Prepare cleanup
+	chSignal := make(chan os.Signal, 1)
+	signal.Notify(chSignal, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	go func() {
+		<-chSignal
+		cleanup()
+	}()
+
+	// Launch code-server-wrapper
 	wrapperPort := launchServerWrapper()
 	serverPort := getServerPort(wrapperPort)
-
-	logger := gologger.GetLogger(gologger.FILE, "/tmp/gl.veda.vscode.web.server/log.txt")
-	logger.Log(fmt.Sprintf("args len: %d, content: %v\n", len(os.Args), os.Args))
 
 	// Open browser when the app is launched from Finder
 	if isOpenFromFinder() {
@@ -195,10 +208,12 @@ func main() {
 
 		bytes, err := ioutil.ReadFile(fileURI)
 		if err != nil {
-			log.Fatal(err)
+			LogFatal(err)
 		}
 
 		res := response{shader: string(bytes)}
 		sendResponse(res)
 	}
+
+	cleanup()
 }
